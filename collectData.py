@@ -1,4 +1,13 @@
 #!/usr/bin/python3
+
+"""
+A module to collect calibrated and filtered IMU data and save it to disk 
+
+
+Created By: Andy Pohl
+            Faculty of Kinesiology - University of Calgary
+            December 2019
+"""
 from calibrate import loadCalibration, applyCalibration
 from adxl345 import ADXL345, ADXL345_DATARATE_200_HZ, ADXL345_RANGE_16_G, EARTH_GRAVITY
 from l3g import L3G
@@ -7,9 +16,12 @@ import math
 from scipy.signal import butter, lfilter, lfilter_zi
 import sys
 
-DATADIR = '/home/pi/Desktop/project/dataCollectionFiles'
+DATADIR = '/home/pi/Desktop/project/dataCollectionFiles' # Default data directory
 
 def butter_lowpass(cutoff, fs, order=2):
+    """
+    Determine Butterworth coefficients for a 2nd order low pass Butterworth filter.
+    """
     nyq = 0.5 * fs
     normal_cutoff = cutoff / nyq
     b, a = butter(order, normal_cutoff, btype='low', analog=False)
@@ -17,7 +29,9 @@ def butter_lowpass(cutoff, fs, order=2):
  
 
 def collectData(accn, gyro, calbriationFile, sessionName):
-
+    """
+    Collect data a 200 Hz
+    """
     dt = 0.005 # 200Hz
     #a, b = computeFilterCoef( 1/dt, 20) # Lowpass filter at 20 Hz
     b, a = butter_lowpass (50, 1/dt, order=2)
@@ -52,7 +66,6 @@ def collectData(accn, gyro, calbriationFile, sessionName):
     # collect data
     with open(saveFilename, 'w+') as saveFile:
         saveFile.write('timestamp,ax,ay,az,gx,gy,gz\n') # write header
-
         sample = 0
         try:
             while True:

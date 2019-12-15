@@ -121,7 +121,7 @@ def runWarmUp(accn, gyro, calbriationFile):
 
     paramOpt =[]
     sample = 0
-    while sample*dt <60:
+    while sample*dt <120:
         t0 = time.time()
         ax, ay, az = accn.read()
         gx,gy,gz = gyro.read()

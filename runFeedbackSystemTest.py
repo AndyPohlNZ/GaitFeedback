@@ -1,3 +1,13 @@
+#!/usr/bin/python3
+
+"""
+runFeedbackSystem Runs the feedback system in a testing state using pre saved data
+
+Created By: Andrew Pohl
+            Faculty of Kinesiology - University of Calgary
+            December 2019
+"""
+
 from calibrate import loadCalibration, applyCalibration
 from adxl345 import ADXL345, ADXL345_DATARATE_200_HZ, ADXL345_RANGE_16_G, EARTH_GRAVITY
 from oscFeedbackClient import  OscFeedbackClient
@@ -13,25 +23,17 @@ import numpy as np
 from explorerhat import motor
 
 
-
-
-
 def z_norm(x, xbar, sd):
+    """ Compute the Z norm of a variable given mean xbar and standard deviation sd"""
     return (x-xbar)/sd
-
-def butter_lowpass(cutoff, fs, order=2):
-    nyq = 0.5 * fs
-    normal_cutoff = cutoff / nyq
-    b, a = butter(order, normal_cutoff, btype='low', analog=False)
-    return b, a
-
-
 
 
 def stanceTimeVariance(params, *args):
+    """ Compute stance time variance for given parameter vector [alpha, beta]
+    """
     alpha = params[0]
-    beta = 2
-    tff =  0.05
+    beta = params[1]
+    tff =  0.1
 
     data = args[0]
     dt = args[1]
@@ -44,7 +46,6 @@ def stanceTimeVariance(params, *args):
 
     # TO detection
     tf = 0
-    #tff = 0.1
     toeOff = []
 
     for i, x in enumerate(data):
@@ -65,39 +66,48 @@ def stanceTimeVariance(params, *args):
             tf +=dt
 
     # Correct start and end of each vector.
-    while toeOff[0]<initialContact[0]:
-        del(toeOff[0])
     
-    while initialContact[-1]>toeOff[-1]:
-        del(initialContact[-1])
+    #Debug print statements
+    #print("Toe OFF DEBUG")
+    #print(toeOff)
+    #print('INITIAL CONTACT debug')
+    #print(initialContact)
 
-    
-    initialContact = np.array(initialContact)
-    toeOff = np.array(toeOff)
+    if len(initialContact)<30:
+        stanceVar = 10000000
+    else:
+        while toeOff[0]<initialContact[0]:
+            del(toeOff[0])
+        
+        while initialContact[-1]>toeOff[-1]:
+            del(initialContact[-1])
 
-    stanceTime = (toeOff - initialContact)*dt
-    stanceVar = np.var(stanceTime)
-    if stanceVar < 0.0001 or len(stanceTime)<50 or np.mean(stanceTime)<.1: stanceVar = 10000000 # hack to constrain to physiologic values.
+        
+        initialContact = np.array(initialContact)
+        toeOff = np.array(toeOff)
+
+        stanceTime = (toeOff - initialContact)*dt
+        #Debug print statements
+        # print("STANCE TIME DEBUG")
+        # print(stanceTime)
+        stanceVar = np.var(stanceTime)
+        #Debug print statements
+        # print("STANCE VAR DEBGU")
+        # print(stanceVar)
+
+        if stanceVar < 0.0001 or len(stanceTime)<30 or np.mean(stanceTime)<.12: stanceVar = 10000000 # hack to constrain to physiologic values.
     
     if returnRawStance:
         return stanceVar, stanceTime, initialContact
     else:
         return stanceVar
 
+
 #def computeFSP(gyro, )
 def runWarmUp():
     tmpFileLoc = 'dataCollectionFiles/Data_20191128_RFS.csv'
     dt = 0.005 # 200Hz
-    # b, a = butter_lowpass (20, 1/dt, order=2)
-
-    # # Initiilse filter
-    # zax = lfilter_zi(b, a)
-    # zay = lfilter_zi(b, a)
-    # zaz = lfilter_zi(b, a)
-
-    # zgx = lfilter_zi(b, a)
-    # zgy = lfilter_zi(b, a)
-    # zgz = lfilter_zi(b, a)    
+    
 
     # Get 2min of data for parameter optimisation
     print("Collecting 2min of data to optimise parameter selection.")
@@ -108,20 +118,7 @@ def runWarmUp():
 
     paramOpt =[]
     sample = 0
-    while sample*dt < 90:
-        # ax, ay, az = accn.read()
-        # gx,gy,gz = gyro.read()
-
-        # ax, ay, az = applyCalibration([ax,ay,az], cal_obj['accn'][0],cal_obj['accn'][1])
-        # gx, gy, gz = applyCalibration([gx,gy,gz], cal_obj['gyro'][0],cal_obj['gyro'][1])
-
-        # axf, zax = lfilter(b, a, [ax], zi = zax)
-        # ayf, zay = lfilter(b, a, [ay], zi = zay)
-        # azf, zaz = lfilter(b, a, [az], zi = zaz)
-
-        # gxf, zgx = lfilter(b, a, [gx], zi = zax)
-        # gyf, zgy = lfilter(b, a, [gy], zi = zay)
-        # gzf, zgz = lfilter(b, a, [gz], zi = zaz)
+    while sample*dt < 120:
         r = rows[sample+1]
         paramOpt.append([float(sample * dt), float(r[1]), float(r[2]), float(r[3]), float(r[4]), float(r[5]), float(r[6])])
         time.sleep(dt/10000) # adjusted to be approx 200Hz

@@ -1,5 +1,15 @@
 #!/usr/bin/python3
+"""
+Calibration Module
 
+Runs calibration procedures for and ADXL345 accelerometer and L3G4200D gyroscope
+Based on the work of Ferraris et al. (1994), Calibration of three-axial rate gyros without angular velocity standards
+
+Created by: Andy Pohl
+            Faculty of Kinesology - University of Calgary
+            December 2019
+
+"""
 from adxl345 import ADXL345, ADXL345_DATARATE_200_HZ, ADXL345_RANGE_16_G, EARTH_GRAVITY
 from l3g import L3G
 import numpy as np
@@ -10,11 +20,14 @@ import pickle
 CALIBRATION_DIR = "calibrationFiles"
 
 def calibrateAccn(accn):
+    """ Calibrate Accelerometer using 6 position Method
+    """
+
     print("Calibrating Accelerometer")
+
+    # Capture Data in each position
     positions = ['+ve x up', '-ve x up', '+ve y up', '-ve y up', '+ve z up', '-ve z up']
-
     pos_counter = 0
-
     w = []
     y =[]
     for pos in positions:
@@ -35,6 +48,7 @@ def calibrateAccn(accn):
         ay = np.mean(ay)
         az = np.mean(az)
 
+        # Convert to LS Form
         w.append([ax,ay,az,1])
         if '+ve' in pos:
             temp = [0,0,0]
@@ -47,10 +61,9 @@ def calibrateAccn(accn):
             pos_counter +=1
         print(temp)
 
-
+    # Generate LS Soln
     w = np.array(w)
     y = np.array(y)
-    
     x = np.dot(np.dot(np.linalg.inv(np.dot(np.transpose(w), w)), np.transpose(w)),y)
 
     bias = x[3,:]
@@ -60,16 +73,17 @@ def calibrateAccn(accn):
     print(bias)
     print("Sensitivity = ")
     print(sensitivity)
-    time.sleep(5)
-
     return bias, sensitivity
 
 
 def calibrateGyro(gyro):
+    """ Calibrate Gyro by completing a full rotation about each positive axis
+    """
+
     print("Calibrating Gyroscope")
     input("Keep Gyro stationary and press [ENTER]")
 
-    # Step 1 compute offset
+    # Step 1 compute offset via stationary
     offset_data =[]
     t0 = time.time()
     while (time.time()-t0) <3: # collect 3 sec of data
@@ -81,15 +95,14 @@ def calibrateGyro(gyro):
     bias = np.mean(offset_data, axis=0)
     print(bias)
 
-    # Step2 compute sensitivty
-
+    # Step2 compute sensitivty via completing rotation about each positive axis
     Bg = np.zeros((3,3))
     Bg[0,:] = [bias[0], bias[0], bias[0]]
     Bg[1,:] = [bias[1], bias[1], bias[1]]
     Bg[2,:] = [bias[2], bias[2], bias[2]]
 
     positions = ['+ve x up', '+ve y up', '+ve z up']
-
+    # Complete data through rotation.
     dt = 0.05 # 200Hz
     pos_counter = 0
     Wg = np.zeros((3,3))
@@ -100,25 +113,18 @@ def calibrateGyro(gyro):
                 gx, gy, gz = gyro.read()
                 Wg[pos_counter,:] += ([gx,gy,gz] - bias[pos_counter])*dt
                 sleep(dt)
-
             except KeyboardInterrupt:
                 break
-
         pos_counter += 1
-    print(Wg)
 
-    #k1=np.dot(Wg, 1/(2*pi))
-    #k2 = np.dot(Wg, 1/(2*pi))
-
+    # Step 3: Complete LS Optimisation
     k2 = np.diag(np.dot(np.dot(Wg, 1/(2*pi)), np.transpose(np.dot(Wg, 1/(2*pi)))))
     K = np.identity(3) * np.sqrt(k2)
-    print("K = ")
-    print(K)
-
+    #print("K = ")
+    #print(K)
     Rg = np.dot(np.dot(np.linalg.inv(K), Wg), 1/(2*pi))
-    print("Rg = ")
-    print(Rg)
-
+    #print("Rg = ")
+    #print(Rg)
     bias = -1*bias
     sensitivity = np.dot(np.linalg.inv(Rg), np.linalg.inv(K))
 
@@ -130,10 +136,18 @@ def calibrateGyro(gyro):
 
 
 def applyCalibration(data, bias, sensitivity):
+    """
+    Apply calibration (given biases and sensitivity(scale factor) matricies.)
+
+    """
     cal = np.matmul(sensitivity, data) + bias
     return cal[0], cal[1], cal[2]
 
 def calibratieIMU(accn, gyro):
+    """
+    Run Calibration Procedure
+
+    """
     accn.set_data_rate(ADXL345_DATARATE_200_HZ)
     sleep(0.01)
 
@@ -151,6 +165,10 @@ def calibratieIMU(accn, gyro):
 
 
 def saveCalibration(calObj, sessionName):
+    """
+    Pickle and Save calibration object as a .cal file.
+    """
+
     filename = CALIBRATION_DIR + "/Calibration_" + time.strftime("%Y%m%d") + "_" + sessionName +".cal"
 
     with open(filename, 'wb') as file:
@@ -158,6 +176,8 @@ def saveCalibration(calObj, sessionName):
     file.close()
 
 def loadCalibration(filename):
+    """ Load calibratio object from file"""
+
     with open(filename, 'rb') as file:
             cal_obj = pickle.load(file)
     return cal_obj
@@ -180,12 +200,12 @@ if __name__ == '__main__':
     accn.set_range(ADXL345_RANGE_16_G)
     sleep(0.01)
 
-
+    # Calibration IMU
     cal_obj = calibratieIMU(accn,gyro)
 
     saveCalibration(cal_obj, 'test')
     
-
+    # Collect data and apply calibration
     while True:
         ax, ay, az = accn.read()
         gx,gy,gz = gyro.read()

@@ -2,6 +2,18 @@
 
 import struct
 
+""" ADXL345 Class
+Samples from ADXL345 Accelerometer via I2C
+
+Originally created by Adafruit and released under MIT liscence
+Retreived from: https://github.com/adafruit/Adafruit_Python_ADXL345/blob/master/Adafruit_ADXL345/ADXL345.py
+
+Modified by Andy Pohl
+            Faculty of Kinesiology - University of Calgary
+            Decemeber 2019
+
+"""
+
 # Minimal constants carried over from Arduino library
 ADXL345_ADDRESS          = 0x53
 ADXL345_REG_DEVID        = 0x00 # Device ID
@@ -116,12 +128,15 @@ class ADXL345(object):
         return self._device.readU8(ADXL345_REG_BW_RATE) & 0x0F
 
     def convertAccnBits(self, x):
+        """ Converts recieved signed 16bit from sensor and converts to float acceleration reading
+        in m/s/s
+        """
         return LSB_MULTIPLIER*x
 
 
     def read(self, gforce=True):
         """Read the current value of the accelerometer and return it as a tuple
-        of signed 16-bit X, Y, Z axis values.
+        of float values in m/s/s or gs depending on status of gforce parameter.
         """
         raw = self._device.readList(ADXL345_REG_DATAX0, 6)
         data = struct.unpack('<hhh', raw)
@@ -133,6 +148,8 @@ class ADXL345(object):
             return x*EARTH_GRAVITY, y*EARTH_GRAVITY, z*EARTH_GRAVITY
         else:
             return x, y, z
+
+
 
 if __name__ == "__main__":
     from time import sleep
@@ -157,10 +174,3 @@ if __name__ == "__main__":
 
 
         sleep(.05)
-
-    
-    # axes = adxl345.getAxes(True)
-    # print "ADXL345 on address 0x%x:" % (adxl345.address)
-    # print "   x = %.3fG" % ( axes['x'] )
-    # print "   y = %.3fG" % ( axes['y'] )
-    # print "   z = %.3fG" % ( axes['z'] )

@@ -1,3 +1,14 @@
+#!/usr/bin/python3
+""" 
+OSC Feedback Client Class
+
+Creates an OSC Client to transmit messages to a puredata patch ToneFeedback.pd
+
+Created By: Andrew Pohl
+            Faculty of Kinesiology - Univeristy of Calgary
+            December 2019
+"""
+
 from pythonosc import udp_client
 from time import sleep
 
@@ -16,7 +27,6 @@ class OscFeedbackClient():
         self.notes = notes
 
     def playTone(self):
-        
         for i, note in enumerate(self.notes):
             midistring = "/midi" + str(i+1)
             self.client.send_message(midistring, note)
