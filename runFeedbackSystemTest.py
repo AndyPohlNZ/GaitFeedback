@@ -20,7 +20,7 @@ import sys
 import csv
 import numpy as np
 
-from explorerhat import motor
+#from explorerhat import motor
 
 
 def z_norm(x, xbar, sd):
@@ -103,12 +103,9 @@ def stanceTimeVariance(params, *args):
         return stanceVar
 
 
-#def computeFSP(gyro, )
-def runWarmUp():
-    tmpFileLoc = 'dataCollectionFiles/Data_20191128_RFS.csv'
+def runWarmUp(tmpFileLoc):
     dt = 0.005 # 200Hz
     
-
     # Get 2min of data for parameter optimisation
     print("Collecting 2min of data to optimise parameter selection.")
     with open(tmpFileLoc, 'r') as tmpFile:
@@ -118,7 +115,7 @@ def runWarmUp():
 
     paramOpt =[]
     sample = 0
-    while sample*dt < 120:
+    while sample*dt < 45: # Note just 45sec for testing
         r = rows[sample+1]
         paramOpt.append([float(sample * dt), float(r[1]), float(r[2]), float(r[3]), float(r[4]), float(r[5]), float(r[6])])
         time.sleep(dt/10000) # adjusted to be approx 200Hz
@@ -127,22 +124,20 @@ def runWarmUp():
         sys.stdout.flush()
     print()
 
-
-  
     print("Running Optimisation")
-    alpha_vals = np.linspace(5,9,20)
-    stv_res = [0]*len(alpha_vals)
-    for i, a in enumerate(alpha_vals):
-        stv_res[i] = stanceTimeVariance([a], paramOpt,dt,False, False)
 
-    opt_alpha = alpha_vals[stv_res == min(stv_res)]
-    opt_beta = 2
+    params = (slice(6, 9, .5), slice(1.8,3,0.2))
+    opt_parms = optimize.brute(stanceTimeVariance, params, args = [paramOpt,dt,False, False], finish=None)
+    print(opt_parms)
+
+    opt_alpha = opt_parms[0]
+    opt_beta = opt_parms[1]
+
     tstance = 0.5
     tff = 0.05
     print("Optimal alpha = %f"%(opt_alpha))
 
-    stv, stanceTimes, initialContact = stanceTimeVariance([opt_alpha], paramOpt,dt,True, False)
-    #print(stanceTimes)
+    stv, stanceTimes, initialContact = stanceTimeVariance([opt_alpha, opt_beta], paramOpt,dt,True, False)
 
     stance_time_mean = np.mean(stanceTimes)
     fsp_limit = 0.4*stance_time_mean
@@ -182,8 +177,7 @@ def runWarmUp():
     return (opt_alpha, opt_beta, 0.5, 0.05), (warmup_fsp_mean, warmup_fsp_sd, fsp_limit), (stride_time_mean, stance_time_mean, flight_time_mean)
 
 
-def activeMode(opt_parms, fsp_parms, timing_parms, feedbackType):
-    tmpFileLoc = '/home/pi/Desktop/project/dataCollectionFiles/Data_20191119_testing_FFS.csv'
+def activeMode(tmpFileLoc, opt_parms, fsp_parms, timing_parms, feedbackType):
     dt = 0.005 # 200Hz
     
     alpha = opt_parms[0]
@@ -205,8 +199,10 @@ def activeMode(opt_parms, fsp_parms, timing_parms, feedbackType):
 
     if feedbackType == 'vibration':
         useMotors = True
+        useSound = False
     elif feedbackType == 'sound':
         useSound = True
+        useMotors = False
     elif feedbackType =='both':
         useMotors = True
         useSound = True
@@ -340,6 +336,9 @@ def activeMode(opt_parms, fsp_parms, timing_parms, feedbackType):
 
 
 if __name__ =="__main__":
-    opt_parms, fsp_parms, timing_parms = runWarmUp()
+    # Location of tempory data file
+    tmpFileLoc = 'testData/TestData.csv'
+
+    opt_parms, fsp_parms, timing_parms = runWarmUp(tmpFileLoc)
     time.sleep(5)
-    activeMode(opt_parms, fsp_parms, timing_parms, 'both')
+    activeMode(tmpFileLoc, opt_parms, fsp_parms, timing_parms, 'sound')
