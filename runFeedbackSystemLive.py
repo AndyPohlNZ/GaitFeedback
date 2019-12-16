@@ -1,3 +1,13 @@
+#!/usr/bin/python3
+
+"""
+runFeedbackSystemLive.py Runs the feedback system Live on a Rasberry Pi 3B+
+
+Created By: Andrew Pohl
+            Faculty of Kinesiology - University of Calgary
+            December 2019
+"""
+
 from calibrate import loadCalibration, applyCalibration
 from adxl345 import ADXL345, ADXL345_DATARATE_200_HZ, ADXL345_RANGE_16_G, EARTH_GRAVITY
 from oscFeedbackClient import  OscFeedbackClient
@@ -147,17 +157,13 @@ def runWarmUp(accn, gyro, calbriationFile):
 
   
     print("Running Optimisation")
-    alpha_vals = np.linspace(7,9,20)
-    
-    stv_res = [0]*len(alpha_vals)
-    for i, a in enumerate(alpha_vals):
-        print("A = %.2f"%(a))
-        stv_res[i] = stanceTimeVariance([a], paramOpt,dt,False, False)
-    
-    print(stv_res)
+    params = (slice(6, 9, .5), slice(1.8,3,0.2))
+    opt_parms = optimize.brute(stanceTimeVariance, params, args = [paramOpt,dt,False, False], finish=None)
+    print(opt_parms)
 
-    opt_alpha = alpha_vals[stv_res == min(stv_res)]
-    opt_beta = 2.5
+    opt_alpha = opt_parms[0]
+    opt_beta = opt_parms[1]
+
     tstance = 0.5
     tff = 0.1
     if len(opt_alpha)>1:
@@ -229,11 +235,14 @@ def activeMode(accn, gyro, calibrationFile, opt_parms, fsp_parms, timing_parms, 
 
     if feedbackType == 'vibration':
         useMotors = True
+        useSound = False
     elif feedbackType == 'sound':
         useSound = True
+        useMotors = False
     elif feedbackType =='both':
         useMotors = True
         useSound = True
+    
 
     b, a = butter_lowpass (50, 1/dt, order=2)
 

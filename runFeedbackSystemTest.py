@@ -225,22 +225,8 @@ def activeMode(tmpFileLoc, opt_parms, fsp_parms, timing_parms, feedbackType):
     oscClient = OscFeedbackClient()
 
     try:
-        while sample*dt <5*60:
+        while sample*dt <30*60: # run for 30min
             
-            # ax, ay, az = accn.read()
-            # gx,gy,gz = gyro.read()
-
-            # ax, ay, az = applyCalibration([ax,ay,az], cal_obj['accn'][0],cal_obj['accn'][1])
-            # gx, gy, gz = applyCalibration([gx,gy,gz], cal_obj['gyro'][0],cal_obj['gyro'][1])
-
-            # axf, zax = lfilter(b, a, [ax], zi = zax)
-            # ayf, zay = lfilter(b, a, [ay], zi = zay)
-            # azf, zaz = lfilter(b, a, [az], zi = zaz)
-
-            # gxf, zgx = lfilter(b, a, [gx], zi = zax)
-            # gyf, zgy = lfilter(b, a, [gy], zi = zay)
-            # gzf, zgz = lfilter(b, a, [gz], zi = zaz)
-
             # get data....
             r = rows[sample+1]
             ax = float(r[1])
